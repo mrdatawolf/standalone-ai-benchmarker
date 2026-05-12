@@ -319,4 +319,9 @@ program
     }
   });
 
-program.parse();
+// No command → start the web viewer (the primary UX)
+if (process.argv.length <= 2) {
+  import('./web/server.js').then(({ startViewer }) => startViewer(config.port ?? 3751));
+} else {
+  program.parse();
+}

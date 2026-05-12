@@ -8,21 +8,22 @@
   },
   "scripts": {
     "start": "node src/cli.js",
-    "build:win": "npx @yao-pkg/pkg src/cli.js --targets node22-win-x64 --output dist/ai-bench-win.exe --config pkg.config.json",
-    "build:mac": "npx @yao-pkg/pkg src/cli.js --targets node22-macos-x64 --output dist/ai-bench-macos --config pkg.config.json",
-    "build:linux": "npx @yao-pkg/pkg src/cli.js --targets node22-linux-x64 --output dist/ai-bench-linux --config pkg.config.json"
+    "build": "node scripts/build.mjs",
+    "build:win": "node scripts/build.mjs && npx @yao-pkg/pkg dist/bundle.cjs --targets node22-win-x64 --output dist/ai-bench-win.exe --config pkg.config.json && node scripts/set-icon-win.mjs",
+    "build:mac": "node scripts/build.mjs && npx @yao-pkg/pkg dist/bundle.cjs --targets node22-macos-x64 --output dist/ai-bench-mac    --config pkg.config.json",
+    "build:linux": "node scripts/build.mjs && npx @yao-pkg/pkg dist/bundle.cjs --targets node22-linux-x64 --output dist/ai-bench-linux  --config pkg.config.json"
   },
   "dependencies": {
-    "better-sqlite3": "^11.10.0",
     "commander": "^12.1.0",
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
     "googleapis": "^144.0.0",
-    "open": "^10.1.0",
     "systeminformation": "^5.23.22"
   },
   "devDependencies": {
-    "@yao-pkg/pkg": "^5.16.1"
+    "@yao-pkg/pkg": "^6.19.0",
+    "esbuild": "^0.25.12",
+    "rcedit": "^5.0.2"
   },
   "engines": {
     "node": ">=22.0.0"

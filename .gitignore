@@ -1,5 +1,16 @@
 /.claude
 .env
+.env.*
+!.env.example
 /dist
 /node_modules
 package-lock.json
+
+# logs
+*.log
+
+# OS artifacts
+Thumbs.db
+desktop.ini
+.DS_Store
+/Samples

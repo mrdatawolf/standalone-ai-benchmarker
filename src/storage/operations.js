@@ -15,7 +15,8 @@ export function saveRun({ runId, timestamp, deviceId, deviceName, hardware, prov
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
-  db.transaction(() => {
+  db.exec('BEGIN');
+  try {
     insertRun.run(
       runId, timestamp, deviceId, deviceName ?? null,
       JSON.stringify(hardware), provider, model,
@@ -31,7 +32,11 @@ export function saveRun({ runId, timestamp, deviceId, deviceName, hardware, prov
         r.success ? 1 : 0, r.error ?? null, r.outputPreview ?? null
       );
     }
-  })();
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
 }
 
 function _hydrate(run) {

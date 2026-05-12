@@ -2,7 +2,7 @@ import express from 'express';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 import { hostname } from 'node:os';
-import open from 'open';
+import { openUrl } from '../util/open.js';
 import { getRuns, getRunById, saveRun, markSynced } from '../storage/operations.js';
 import { fetchAllRuns, pushRun } from '../sheets/client.js';
 import { runBenchmark } from '../benchmark/engine.js';
@@ -223,7 +223,7 @@ export async function startViewer(port = 3751) {
     console.log(`\nViewer running at ${url}`);
     console.log('  Local network: http://<your-ip>:' + port);
     console.log('Press Ctrl+C to stop.\n');
-    try { await open(url); } catch { /* ignore */ }
+    openUrl(url);
   });
 
   await new Promise(() => {});

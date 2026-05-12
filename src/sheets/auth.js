@@ -2,7 +2,7 @@ import { google } from 'googleapis';
 import { createServer } from 'node:http';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import open from 'open';
+import { openUrl } from '../util/open.js';
 import { DATA_DIR, getUserConfig } from '../config.js';
 
 const TOKEN_PATH  = join(DATA_DIR, 'token.json');
@@ -92,9 +92,7 @@ function _captureCode(authUrl) {
       else reject(new Error(error ?? 'No authorization code received'));
     });
 
-    server.listen(3729, '127.0.0.1', async () => {
-      try { await open(authUrl); } catch { /* browser open failed — user can visit URL manually */ }
-    });
+    server.listen(3729, '127.0.0.1', () => { openUrl(authUrl); });
 
     server.on('error', reject);
 

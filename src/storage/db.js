@@ -1,13 +1,13 @@
 import { join } from 'node:path';
-import Database from 'better-sqlite3';
+import { DatabaseSync } from 'node:sqlite';
 import { DATA_DIR } from '../config.js';
 
 let _db = null;
 
 export function getDb() {
   if (_db) return _db;
-  _db = new Database(join(DATA_DIR, 'data.db'));
-  _db.pragma('journal_mode = WAL');
+  _db = new DatabaseSync(join(DATA_DIR, 'data.db'));
+  _db.exec('PRAGMA journal_mode = WAL');
   _initSchema(_db);
   return _db;
 }
