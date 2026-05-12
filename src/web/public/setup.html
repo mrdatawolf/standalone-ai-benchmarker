@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Bench — Setup</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f1117; --surface: #1a1d27; --surface2: #222638;
+      --border: #2d3148; --text: #e2e8f0; --muted: #8892aa;
+      --accent: #6366f1; --green: #22c55e; --red: #ef4444; --yellow: #f59e0b;
+    }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 15px; line-height: 1.6;
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      padding: 2rem 1rem;
+    }
+
+    /* ── Wizard container ── */
+    .wizard {
+      width: 100%; max-width: 580px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; overflow: hidden;
+    }
+
+    /* ── Progress bar ── */
+    .progress {
+      display: flex; background: var(--surface2);
+      border-bottom: 1px solid var(--border); padding: 1.25rem 2rem;
+      gap: .5rem; align-items: center;
+    }
+    .progress-step {
+      display: flex; align-items: center; gap: .5rem;
+      font-size: .8rem; color: var(--muted); flex-shrink: 0;
+    }
+    .progress-step .dot {
+      width: 28px; height: 28px; border-radius: 50%;
+      border: 2px solid var(--border); display: flex; align-items: center;
+      justify-content: center; font-size: .75rem; font-weight: 700;
+      transition: all .2s; flex-shrink: 0;
+    }
+    .progress-step.done .dot   { background: var(--green); border-color: var(--green); color: #fff; }
+    .progress-step.active .dot { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .progress-connector { flex: 1; height: 2px; background: var(--border); min-width: 12px; }
+    .progress-connector.done { background: var(--green); }
+
+    /* ── Panel ── */
+    .panel { display: none; padding: 2.5rem 2rem; }
+    .panel.active { display: block; }
+
+    .panel-icon { font-size: 2.5rem; margin-bottom: 1rem; }
+    .panel h1   { font-size: 1.5rem; font-weight: 700; margin-bottom: .5rem; }
+    .panel p    { color: var(--muted); margin-bottom: 1.25rem; }
+    .panel p + p { margin-top: -.75rem; }
+
+    /* ── Inputs ── */
+    label   { display: block; font-size: .85rem; color: var(--muted); margin-bottom: .35rem; }
+    input, select {
+      width: 100%; background: var(--bg); border: 1px solid var(--border);
+      color: var(--text); padding: .6rem .85rem; border-radius: 8px;
+      font-size: .95rem; margin-bottom: 1.25rem;
+    }
+    input:focus, select:focus { outline: none; border-color: var(--accent); }
+
+    /* ── Buttons ── */
+    .btn-row { display: flex; gap: .75rem; align-items: center; margin-top: 1.75rem; flex-wrap: wrap; }
+    button {
+      padding: .6rem 1.4rem; border-radius: 8px; font-size: .95rem;
+      font-weight: 600; cursor: pointer; border: none; transition: opacity .15s;
+    }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-primary  { background: var(--accent); color: #fff; }
+    .btn-primary:hover:not(:disabled) { opacity: .88; }
+    .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .btn-skip { background: none; color: var(--muted); border: none; padding: .6rem .5rem; font-weight: 400; text-decoration: underline; }
+    .btn-skip:hover { color: var(--text); }
+    .btn-full { width: 100%; text-align: center; padding: .75rem; font-size: 1rem; }
+
+    /* ── Status / feedback ── */
+    .status-row { display: flex; align-items: center; gap: .6rem; font-size: .875rem; padding: .6rem .85rem; border-radius: 8px; margin-bottom: 1.25rem; }
+    .status-row.ok     { background: rgba(34,197,94,.1);  color: var(--green); border: 1px solid rgba(34,197,94,.25); }
+    .status-row.fail   { background: rgba(239,68,68,.1);  color: var(--red);   border: 1px solid rgba(239,68,68,.25); }
+    .status-row.info   { background: rgba(99,102,241,.1); color: #a5b4fc;      border: 1px solid rgba(99,102,241,.25); }
+    .status-row.warn   { background: rgba(245,158,11,.1); color: var(--yellow); border: 1px solid rgba(245,158,11,.25); }
+    .status-row.hidden { display: none; }
+
+    /* ── Feature list ── */
+    .feature-list { list-style: none; margin-bottom: 1.5rem; }
+    .feature-list li { display: flex; align-items: flex-start; gap: .6rem; padding: .4rem 0; }
+    .feature-list .ico { font-size: 1.1rem; flex-shrink: 0; margin-top: .05rem; }
+    .feature-list .desc { color: var(--muted); font-size: .875rem; }
+
+    /* ── Optional badge ── */
+    .optional-badge {
+      display: inline-block; background: rgba(245,158,11,.15); color: var(--yellow);
+      border: 1px solid rgba(245,158,11,.3); font-size: .7rem; font-weight: 700;
+      padding: 2px 8px; border-radius: 999px; letter-spacing: .05em;
+      text-transform: uppercase; margin-bottom: 1rem;
+    }
+
+    /* ── Provider selector ── */
+    .provider-options { display: flex; gap: .75rem; margin-bottom: 1.25rem; }
+    .provider-opt {
+      flex: 1; background: var(--bg); border: 2px solid var(--border);
+      border-radius: 10px; padding: .85rem .75rem; cursor: pointer;
+      text-align: center; transition: all .15s;
+    }
+    .provider-opt:hover  { border-color: var(--muted); }
+    .provider-opt.active { border-color: var(--accent); background: rgba(99,102,241,.08); }
+    .provider-opt .name  { font-weight: 600; font-size: .9rem; margin-bottom: .2rem; }
+    .provider-opt .hint  { font-size: .75rem; color: var(--muted); }
+
+    /* ── Setup steps (Google) ── */
+    .setup-steps { display: none; margin-top: 1.25rem; }
+    .setup-steps.visible { display: block; }
+    .setup-step {
+      display: flex; gap: .85rem; padding: .75rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .setup-step:last-of-type { border-bottom: none; }
+    .step-num {
+      width: 24px; height: 24px; border-radius: 50%; background: var(--surface2);
+      border: 1px solid var(--border); display: flex; align-items: center;
+      justify-content: center; font-size: .75rem; font-weight: 700;
+      flex-shrink: 0; margin-top: .15rem;
+    }
+    .setup-step .content { flex: 1; }
+    .setup-step .content .title { font-weight: 600; font-size: .9rem; margin-bottom: .25rem; }
+    .setup-step .content p { font-size: .835rem; margin-bottom: 0; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Summary (done panel) ── */
+    .summary-item {
+      display: flex; align-items: center; gap: .75rem;
+      padding: .65rem .9rem; border-radius: 8px; margin-bottom: .5rem;
+      background: var(--surface2); border: 1px solid var(--border);
+    }
+    .summary-item .icon { font-size: 1.1rem; }
+    .summary-item .val  { font-weight: 600; }
+    .summary-item .sub  { font-size: .8rem; color: var(--muted); }
+    .summary-item.skipped .icon { opacity: .4; }
+    .summary-item.skipped .val  { color: var(--muted); }
+  </style>
+</head>
+<body>
+<div class="wizard">
+
+  <!-- ── Progress ── -->
+  <div class="progress">
+    <div class="progress-step active" id="ps1"><div class="dot">1</div></div>
+    <div class="progress-connector" id="pc1"></div>
+    <div class="progress-step" id="ps2"><div class="dot">2</div></div>
+    <div class="progress-connector" id="pc2"></div>
+    <div class="progress-step" id="ps3"><div class="dot">3</div></div>
+    <div class="progress-connector" id="pc3"></div>
+    <div class="progress-step" id="ps4"><div class="dot">4</div></div>
+    <div class="progress-connector" id="pc4"></div>
+    <div class="progress-step" id="ps5"><div class="dot">✓</div></div>
+  </div>
+
+  <!-- ── Panel 1: Welcome ── -->
+  <div id="panel-1" class="panel active">
+    <div class="panel-icon">⚡</div>
+    <h1>Welcome to AI Bench</h1>
+    <p>Benchmark your local AI models and see how your hardware compares to other machines.</p>
+
+    <ul class="feature-list">
+      <li>
+        <span class="ico">🖥️</span>
+        <div><strong>Runs locally</strong><br><span class="desc">Tests your Ollama or llama.cpp models directly on this machine.</span></div>
+      </li>
+      <li>
+        <span class="ico">📊</span>
+        <div><strong>Measures what matters</strong><br><span class="desc">Tokens/second, time-to-first-token, and prefill speed across real-world prompts.</span></div>
+      </li>
+      <li>
+        <span class="ico">🗂️</span>
+        <div><strong>Saves locally</strong> — <em>no account needed</em><br><span class="desc">All results stored on your machine. Nothing sent anywhere without your permission.</span></div>
+      </li>
+      <li>
+        <span class="ico">🌐</span>
+        <div><strong>Optional: compare with others</strong><br><span class="desc">Sync to a shared Google Sheet to compare your hardware against other machines.</span></div>
+      </li>
+    </ul>
+
+    <div class="btn-row">
+      <button class="btn-primary" onclick="goTo(2)">Get Started →</button>
+    </div>
+  </div>
+
+  <!-- ── Panel 2: Device Name ── -->
+  <div id="panel-2" class="panel">
+    <div class="panel-icon">🏷️</div>
+    <h1>Name This Device</h1>
+    <p>How should this machine appear in benchmark results and comparisons?</p>
+
+    <label for="inp-device-name">Device name</label>
+    <input id="inp-device-name" type="text" placeholder="My Gaming PC">
+    <p style="margin-top:-.9rem; font-size:.8rem; color:var(--muted)">You can change this later with <code style="background:var(--bg);padding:1px 5px;border-radius:4px;">ai-bench config</code></p>
+
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="goTo(1)">← Back</button>
+      <button class="btn-primary" onclick="saveDeviceName()">Next →</button>
+    </div>
+  </div>
+
+  <!-- ── Panel 3: AI Provider ── -->
+  <div id="panel-3" class="panel">
+    <div class="panel-icon">🤖</div>
+    <h1>Connect Your AI Model</h1>
+    <p>AI Bench benchmarks local AI inference engines. Select the one you're using:</p>
+
+    <div class="provider-options">
+      <div class="provider-opt active" id="opt-ollama" onclick="selectProvider('ollama')">
+        <div class="name">Ollama</div>
+        <div class="hint">Recommended<br>ollama.com</div>
+      </div>
+      <div class="provider-opt" id="opt-llamacpp" onclick="selectProvider('llamacpp')">
+        <div class="name">llama.cpp</div>
+        <div class="hint">Server mode<br>port 8080</div>
+      </div>
+      <div class="provider-opt" id="opt-custom" onclick="selectProvider('custom')">
+        <div class="name">Custom</div>
+        <div class="hint">Any OpenAI-<br>compatible URL</div>
+      </div>
+    </div>
+
+    <label for="inp-provider-url">Server URL</label>
+    <input id="inp-provider-url" type="text" value="http://localhost:11434">
+
+    <div id="provider-status" class="status-row hidden"></div>
+
+    <div id="no-ollama-help" style="display:none; padding:.85rem; background:var(--surface2); border:1px solid var(--border); border-radius:8px; margin-bottom:1.25rem; font-size:.875rem;">
+      <strong>Don't have Ollama yet?</strong><br>
+      <p style="margin-top:.4rem; margin-bottom:.6rem;">Ollama lets you run AI models locally in one click.</p>
+      <a href="https://ollama.com/download" target="_blank">Download Ollama ↗</a>
+      &nbsp;·&nbsp;
+      <a href="https://ollama.com/library" target="_blank">Browse models ↗</a>
+      <br><br>
+      <strong>After installing:</strong> run <code style="background:var(--bg);padding:1px 5px;border-radius:4px;">ollama pull llama3.2:3b</code> to get a small fast model, then click Test Connection below.
+    </div>
+
+    <!-- Model selection — appears after a successful connection test -->
+    <div id="model-selection" style="display:none">
+      <label for="sel-setup-model">Model</label>
+      <select id="sel-setup-model" onchange="updateNextButton()">
+        <option value="">Select a model…</option>
+      </select>
+      <p id="model-hint" style="font-size:.8rem; color:var(--muted); margin-top:-.65rem; margin-bottom:1.25rem"></p>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="goTo(2)">← Back</button>
+      <button class="btn-secondary" id="btn-test-provider" onclick="testProvider()">Test Connection</button>
+      <button class="btn-primary"   id="btn-provider-next" onclick="saveProvider()" disabled>Next →</button>
+      <button class="btn-skip"      onclick="skipProvider()">Skip for now</button>
+    </div>
+  </div>
+
+  <!-- ── Panel 4: Google Sheets (optional) ── -->
+  <div id="panel-4" class="panel">
+    <span class="optional-badge">Optional</span>
+    <div class="panel-icon">📋</div>
+    <h1>Share Results</h1>
+    <p>AI Bench can sync your benchmark results to a shared Google Sheet, so you can compare your hardware against other machines on a leaderboard.</p>
+    <p>This step requires a one-time Google Cloud credential setup. <strong>It is completely optional</strong> — all results are saved locally regardless.</p>
+
+    <div class="btn-row" style="margin-top:1rem; margin-bottom: 1.5rem">
+      <button class="btn-primary btn-full" onclick="goTo(5)" style="flex:1">Skip for now →</button>
+    </div>
+
+    <button class="btn-secondary" style="width:100%" onclick="toggleSheetsSetup()">Set up Google Sheets instead ▾</button>
+
+    <div id="sheets-setup" class="setup-steps">
+      <p style="margin: 1rem 0 .5rem; font-size:.875rem;">Follow these 5 steps to get your credentials:</p>
+
+      <div class="setup-step">
+        <div class="step-num">1</div>
+        <div class="content">
+          <div class="title">Open Google Cloud Console</div>
+          <p><a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com ↗</a> — sign in with any Google account.</p>
+        </div>
+      </div>
+      <div class="setup-step">
+        <div class="step-num">2</div>
+        <div class="content">
+          <div class="title">Create or select a project</div>
+          <p>Click the project dropdown at the top → "New Project". Name it anything (e.g. "ai-bench").</p>
+        </div>
+      </div>
+      <div class="setup-step">
+        <div class="step-num">3</div>
+        <div class="content">
+          <div class="title">Enable the Google Sheets API</div>
+          <p>Go to <strong>APIs &amp; Services → Library</strong> → search "Google Sheets API" → Enable.</p>
+        </div>
+      </div>
+      <div class="setup-step">
+        <div class="step-num">4</div>
+        <div class="content">
+          <div class="title">Create OAuth credentials</div>
+          <p>Go to <strong>APIs &amp; Services → Credentials → Create Credentials → OAuth client ID</strong>. Set Application type to <strong>"Desktop app"</strong>. Click Create.</p>
+        </div>
+      </div>
+      <div class="setup-step">
+        <div class="step-num">5</div>
+        <div class="content">
+          <div class="title">Paste your credentials below</div>
+          <p>Copy the Client ID and Client Secret from the dialog that appears.</p>
+        </div>
+      </div>
+
+      <div style="margin-top:1.25rem">
+        <label for="inp-client-id">Client ID</label>
+        <input id="inp-client-id" type="text" placeholder="123456789012-abc...apps.googleusercontent.com">
+        <label for="inp-client-secret">Client Secret</label>
+        <input id="inp-client-secret" type="password" placeholder="GOCSPX-...">
+      </div>
+
+      <div id="sheets-status" class="status-row hidden"></div>
+
+      <div class="btn-row">
+        <button class="btn-primary" onclick="saveSheets()">Save &amp; Continue →</button>
+        <button class="btn-skip" onclick="goTo(5)">Skip for now</button>
+      </div>
+    </div>
+
+    <div class="btn-row" style="margin-top:1rem">
+      <button class="btn-secondary" onclick="goTo(3)">← Back</button>
+    </div>
+  </div>
+
+  <!-- ── Panel 5: Done ── -->
+  <div id="panel-5" class="panel">
+    <div class="panel-icon">🎉</div>
+    <h1>You're All Set!</h1>
+    <p>Here's what was configured. You can change any of this later with <code style="background:var(--bg);padding:1px 5px;border-radius:4px;">ai-bench config</code>.</p>
+
+    <div id="summary" style="margin: 1.5rem 0"></div>
+
+    <button class="btn-primary btn-full" onclick="finish()">Open AI Bench →</button>
+  </div>
+
+</div>
+
+<script>
+let state = {
+  deviceName:      '',
+  provider:        'ollama',
+  baseUrl:         'http://localhost:11434',
+  model:           null,
+  providerSkipped: false,
+  sheetsSetup:     false,
+  clientId:        '',
+  clientSecret:    '',
+  hostname:        '',
+};
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+fetch('/api/setup/status').then(r => r.json()).then(s => {
+  state.hostname = s.hostname ?? '';
+  document.getElementById('inp-device-name').value = s.deviceName || s.hostname || '';
+  if (s.defaultProvider) {
+    state.provider = s.defaultProvider;
+    selectProvider(s.defaultProvider, false);
+  }
+  if (s.defaultBaseUrl) {
+    document.getElementById('inp-provider-url').value = s.defaultBaseUrl;
+    state.baseUrl = s.defaultBaseUrl;
+  }
+  // Auto-test the provider on panel 3 open
+}).catch(() => {});
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function goTo(n) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + n).classList.add('active');
+  updateProgress(n);
+  if (n === 3) autoTestProvider();
+  if (n === 5) renderSummary();
+}
+
+function updateProgress(current) {
+  for (let i = 1; i <= 5; i++) {
+    const step = document.getElementById('ps' + i);
+    step.classList.remove('active', 'done');
+    if (i < current) step.classList.add('done');
+    else if (i === current) step.classList.add('active');
+
+    if (i < 5) {
+      const conn = document.getElementById('pc' + i);
+      conn.classList.toggle('done', i < current);
+    }
+  }
+}
+
+// ── Panel 2: Device name ──────────────────────────────────────────────────────
+function saveDeviceName() {
+  const name = document.getElementById('inp-device-name').value.trim();
+  state.deviceName = name || state.hostname || 'My Device';
+  goTo(3);
+}
+
+// ── Panel 3: Provider ─────────────────────────────────────────────────────────
+const PROVIDER_URLS = { ollama: 'http://localhost:11434', llamacpp: 'http://localhost:8080', custom: '' };
+
+function selectProvider(name, updateUrl = true) {
+  state.provider = name;
+  document.querySelectorAll('.provider-opt').forEach(o => o.classList.remove('active'));
+  document.getElementById('opt-' + name)?.classList.add('active');
+  if (updateUrl && PROVIDER_URLS[name]) {
+    document.getElementById('inp-provider-url').value = PROVIDER_URLS[name];
+  }
+  setProviderStatus('hidden', '');
+  document.getElementById('btn-provider-next').disabled = true;
+  document.getElementById('no-ollama-help').style.display = 'none';
+  // Reset model section when provider changes
+  document.getElementById('model-selection').style.display = 'none';
+  document.getElementById('sel-setup-model').innerHTML = '<option value="">Select a model…</option>';
+  state.model = null;
+}
+
+function setProviderStatus(type, msg) {
+  const el = document.getElementById('provider-status');
+  el.className = 'status-row ' + type;
+  el.textContent = msg;
+}
+
+async function autoTestProvider() {
+  const url = document.getElementById('inp-provider-url').value.trim();
+  if (!url) return;
+  setProviderStatus('info', 'Checking for ' + state.provider + '…');
+  await runProviderCheck(url);
+}
+
+async function testProvider() {
+  const url = document.getElementById('inp-provider-url').value.trim();
+  state.baseUrl = url;
+  if (!url) { setProviderStatus('fail', 'Please enter a URL first.'); return; }
+  const btn = document.getElementById('btn-test-provider');
+  btn.disabled = true; btn.textContent = 'Testing…';
+  await runProviderCheck(url);
+  btn.disabled = false; btn.textContent = 'Test Connection';
+}
+
+async function runProviderCheck(url) {
+  try {
+    const res  = await fetch(`/api/setup/check-provider?url=${encodeURIComponent(url)}&provider=${state.provider}`);
+    const data = await res.json();
+    if (data.ok) {
+      const count = data.models?.length ?? 0;
+      setProviderStatus('ok', `✓ Connected${count ? ` — ${count} model${count === 1 ? '' : 's'} found` : ''}`);
+      document.getElementById('no-ollama-help').style.display = 'none';
+      populateModelDropdown(data.models ?? []);
+    } else {
+      setProviderStatus('fail', '✗ ' + (data.reason ?? 'Not reachable'));
+      document.getElementById('model-selection').style.display = 'none';
+      document.getElementById('btn-provider-next').disabled = true;
+      if (state.provider === 'ollama') {
+        document.getElementById('no-ollama-help').style.display = 'block';
+      }
+    }
+  } catch {
+    setProviderStatus('fail', '✗ Could not reach server');
+    document.getElementById('model-selection').style.display = 'none';
+    document.getElementById('btn-provider-next').disabled = true;
+  }
+}
+
+function populateModelDropdown(models) {
+  const sel     = document.getElementById('sel-setup-model');
+  const hint    = document.getElementById('model-hint');
+  const section = document.getElementById('model-selection');
+
+  sel.innerHTML = '';
+
+  if (models.length > 0) {
+    const blank = document.createElement('option');
+    blank.value = ''; blank.textContent = 'Select a model…';
+    sel.appendChild(blank);
+    models.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m; opt.textContent = m;
+      sel.appendChild(opt);
+    });
+    if (models.length === 1) sel.value = models[0]; // auto-select if only one
+    hint.textContent = '';
+  } else {
+    // Provider is reachable but doesn't expose a model list (e.g. llama.cpp)
+    const opt = document.createElement('option');
+    opt.value = ''; opt.textContent = '— using server default —';
+    sel.appendChild(opt);
+    hint.textContent = 'This provider doesn\'t list models — it will use whichever model is loaded on the server.';
+  }
+
+  section.style.display = 'block';
+  updateNextButton();
+}
+
+function updateNextButton() {
+  const sel = document.getElementById('sel-setup-model');
+  // Enable Next if: a real model is selected, OR only option is "server default" (no list)
+  const ok = sel.value !== '' || (sel.options.length === 1 && sel.options[0].value === '');
+  document.getElementById('btn-provider-next').disabled = !ok;
+}
+
+function skipProvider() {
+  state.providerSkipped = true;
+  state.baseUrl = document.getElementById('inp-provider-url').value.trim();
+  goTo(4);
+}
+
+async function saveProvider() {
+  state.baseUrl = document.getElementById('inp-provider-url').value.trim();
+  state.model   = document.getElementById('sel-setup-model').value || null;
+  await fetch('/api/setup/save', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      defaultProvider: state.provider,
+      defaultBaseUrl:  state.baseUrl,
+      defaultModel:    state.model,
+    }),
+  });
+  goTo(4);
+}
+
+// ── Panel 4: Google Sheets ────────────────────────────────────────────────────
+function toggleSheetsSetup() {
+  const el  = document.getElementById('sheets-setup');
+  const btn = document.querySelector('#panel-4 .btn-secondary[onclick="toggleSheetsSetup()"]');
+  const visible = el.classList.toggle('visible');
+  btn.textContent = visible ? 'Hide instructions ▴' : 'Set up Google Sheets instead ▾';
+}
+
+function setSheetsStatus(type, msg) {
+  const el = document.getElementById('sheets-status');
+  el.className = 'status-row ' + type;
+  el.textContent = msg;
+}
+
+async function saveSheets() {
+  const clientId     = document.getElementById('inp-client-id').value.trim();
+  const clientSecret = document.getElementById('inp-client-secret').value.trim();
+
+  if (!clientId || !clientSecret) {
+    setSheetsStatus('fail', 'Please enter both Client ID and Client Secret.');
+    return;
+  }
+
+  setSheetsStatus('info', 'Saving credentials…');
+  try {
+    await fetch('/api/setup/save', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ googleClientId: clientId, googleClientSecret: clientSecret }),
+    });
+    state.sheetsSetup = true;
+    state.clientId    = clientId;
+    setSheetsStatus('ok', '✓ Saved. First benchmark will open Google authorization in your browser.');
+    setTimeout(() => goTo(5), 1200);
+  } catch (err) {
+    setSheetsStatus('fail', 'Failed to save: ' + err.message);
+  }
+}
+
+// ── Panel 5: Done ─────────────────────────────────────────────────────────────
+function renderSummary() {
+  const items = [
+    {
+      icon: '🏷️',
+      label: 'Device name',
+      val: state.deviceName || state.hostname || 'Not set',
+      ok: true,
+    },
+    {
+      icon: '🤖',
+      label: 'AI Provider',
+      val: state.providerSkipped
+        ? 'Not configured'
+        : state.provider + ' at ' + (state.baseUrl || 'default URL')
+          + (state.model ? ` · ${state.model}` : ''),
+      ok: !state.providerSkipped,
+    },
+    {
+      icon: '📋',
+      label: 'Google Sheets',
+      val: state.sheetsSetup
+        ? 'Configured — will sync on next benchmark'
+        : 'Not set up',
+      ok: state.sheetsSetup,
+      note: state.sheetsSetup ? '' : 'Add later: ai-bench config',
+    },
+  ];
+
+  document.getElementById('summary').innerHTML = items.map(item => `
+    <div class="summary-item ${item.ok ? '' : 'skipped'}">
+      <span class="icon">${item.icon}</span>
+      <div>
+        <div class="sub">${item.label}</div>
+        <div class="val">${item.val}</div>
+        ${item.note ? `<div class="sub" style="margin-top:.15rem">${item.note}</div>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+async function finish() {
+  await fetch('/api/setup/save', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      deviceName:   state.deviceName || state.hostname,
+      setupComplete: true,
+    }),
+  });
+  window.location.href = '/';
+}
+</script>
+</body>
+</html>
