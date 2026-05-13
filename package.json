@@ -9,7 +9,7 @@
   "scripts": {
     "start": "node src/cli.js",
     "build": "node scripts/build.mjs",
-    "build:win": "node scripts/build.mjs && npx @yao-pkg/pkg dist/bundle.cjs --targets node22-win-x64 --output dist/ai-bench-win.exe --config pkg.config.json && node scripts/set-icon-win.mjs",
+    "build:win": "node scripts/build.mjs && node scripts/pkg-win.mjs",
     "build:mac": "node scripts/build.mjs && npx @yao-pkg/pkg dist/bundle.cjs --targets node22-macos-x64 --output dist/ai-bench-mac    --config pkg.config.json",
     "build:linux": "node scripts/build.mjs && npx @yao-pkg/pkg dist/bundle.cjs --targets node22-linux-x64 --output dist/ai-bench-linux  --config pkg.config.json"
   },

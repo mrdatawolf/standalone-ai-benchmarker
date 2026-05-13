@@ -1,6 +1,4 @@
 import express from 'express';
-import { fileURLToPath } from 'node:url';
-import { join, dirname } from 'node:path';
 import { hostname } from 'node:os';
 import { openUrl } from '../util/open.js';
 import { getRuns, getRunById, saveRun, markSynced } from '../storage/operations.js';
@@ -11,7 +9,30 @@ import { config, getUserConfig, saveUserConfig } from '../config.js';
 import { getAuthClient, hasValidToken } from '../sheets/auth.js';
 import { randomUUID } from 'node:crypto';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
+// Static files are inlined by esbuild at build time (see scripts/build.mjs).
+// This avoids separate pkg VFS asset entries, whose binary reads fail on some
+// Windows machines (antivirus modifies embedded offsets in the bundled binary).
+import indexHtml  from './public/index.html';
+import setupHtml  from './public/setup.html';
+import appJs      from './public/app.js';
+import wolfPng    from './public/wolf-race.png';
+import wolfIco    from './public/wolf-race.ico';
+
+const staticCache = {
+  '/index.html':   { buf: Buffer.from(indexHtml),        type: 'text/html; charset=utf-8' },
+  '/setup.html':   { buf: Buffer.from(setupHtml),        type: 'text/html; charset=utf-8' },
+  '/app.js':       { buf: Buffer.from(appJs),            type: 'application/javascript; charset=utf-8' },
+  '/wolf-race.png':{ buf: Buffer.from(wolfPng, 'base64'),type: 'image/png' },
+  '/wolf-race.ico':{ buf: Buffer.from(wolfIco, 'base64'),type: 'image/x-icon' },
+};
+
+function sendStatic(res, path) {
+  const f = staticCache[path];
+  if (!f) return false;
+  res.setHeader('Content-Type', f.type);
+  res.send(f.buf);
+  return true;
+}
 
 export async function startViewer(port = 3751) {
   const app = express();
@@ -22,11 +43,13 @@ export async function startViewer(port = 3751) {
     if (!getUserConfig().setupComplete) {
       return res.redirect('/setup.html');
     }
-    res.sendFile(join(__dirname, 'public', 'index.html'));
+    sendStatic(res, '/index.html');
   });
 
-  // Serve static files (but don't auto-index so our / route above is used)
-  app.use(express.static(join(__dirname, 'public'), { index: false }));
+  // Serve static files from memory (bypasses pkg VFS file-descriptor reads)
+  app.use((req, res, next) => {
+    if (!sendStatic(res, req.path)) next();
+  });
 
   // ── Setup API ─────────────────────────────────────────────────────────────
 
@@ -94,11 +117,13 @@ export async function startViewer(port = 3751) {
   app.get('/api/settings', (_req, res) => {
     const uc = getUserConfig();
     res.json({
-      deviceName:     uc.deviceName ?? null,
-      sheetsId:       uc.sheetsId   ?? config.sheetsId ?? null,
-      hasCredentials: !!(uc.googleClientId     ?? process.env.GOOGLE_CLIENT_ID) &&
-                      !!(uc.googleClientSecret ?? process.env.GOOGLE_CLIENT_SECRET),
-      hasToken:       hasValidToken(),
+      deviceName:         uc.deviceName ?? null,
+      sheetsId:           uc.sheetsId   ?? config.sheetsId ?? null,
+      hasCredentials:     !!(uc.googleClientId     ?? process.env.GOOGLE_CLIENT_ID) &&
+                          !!(uc.googleClientSecret ?? process.env.GOOGLE_CLIENT_SECRET),
+      hasToken:           hasValidToken(),
+      googleClientId:     uc.googleClientId     ?? process.env.GOOGLE_CLIENT_ID     ?? null,
+      googleClientSecret: uc.googleClientSecret ?? process.env.GOOGLE_CLIENT_SECRET ?? null,
     });
   });
 
@@ -118,6 +143,8 @@ export async function startViewer(port = 3751) {
         if (m) updates.sheetsId = m[1];
         config.sheetsId = updates.sheetsId;
       }
+      if (updates.googleClientId)     config.googleClientId     = updates.googleClientId;
+      if (updates.googleClientSecret) config.googleClientSecret = updates.googleClientSecret;
       saveUserConfig(updates);
       res.json({ ok: true });
     } catch (err) {

@@ -428,7 +428,25 @@ function renderCompareTable(rows) {
   ]);
 }
 
+// ── Join code helpers ─────────────────────────────────────────────────────────
+function encodeJoinCode(clientId, clientSecret, sheetsId) {
+  return 'aib_' + btoa(JSON.stringify({ c: clientId, s: clientSecret || '', d: sheetsId }));
+}
+
+function decodeJoinCode(code) {
+  try {
+    const raw = code.trim().startsWith('aib_') ? code.trim().slice(4) : code.trim();
+    const { c, s, d } = JSON.parse(atob(raw));
+    if (!c || !d) return null;
+    return { clientId: c, clientSecret: s || '', sheetsId: d };
+  } catch {
+    return null;
+  }
+}
+
 // ── Settings Tab ──────────────────────────────────────────────────────────────
+let _settingsData = {};
+
 async function loadSettings() {
   const resultEl   = document.getElementById('settings-result');
   const progressEl = document.getElementById('auth-progress');
@@ -438,14 +456,23 @@ async function loadSettings() {
 
   try {
     const data = await fetch('/api/settings').then(r => r.json());
+    _settingsData = data;
 
     document.getElementById('set-device-name').value = data.deviceName ?? '';
     document.getElementById('set-sheet-url').value   = data.sheetsId   ?? '';
 
     if (data.hasCredentials) {
-      document.getElementById('set-client-id').placeholder     = '(saved — enter new value to update)';
-      document.getElementById('set-client-secret').placeholder = '(saved — enter new value to update)';
+      document.getElementById('cred-saved-row').style.display  = 'block';
+      document.getElementById('cred-section').style.display    = 'none';
+      document.getElementById('set-client-id').value           = data.googleClientId ?? '';
+      document.getElementById('set-client-secret').placeholder = '(saved)';
+    } else {
+      document.getElementById('cred-saved-row').style.display = 'none';
+      document.getElementById('cred-section').style.display   = 'block';
     }
+
+    document.getElementById('btn-copy-join-code').style.display =
+      (data.hasCredentials && data.sheetsId) ? 'inline-block' : 'none';
 
     const authorizeBtn = document.getElementById('btn-authorize');
     if (data.hasToken) {
@@ -465,6 +492,40 @@ async function loadSettings() {
   }
 }
 
+function copyJoinCode() {
+  const { googleClientId, googleClientSecret, sheetsId } = _settingsData;
+  if (!googleClientId || !sheetsId) return;
+  const code = encodeJoinCode(googleClientId, googleClientSecret, sheetsId);
+  const btn  = document.getElementById('btn-copy-join-code');
+  navigator.clipboard.writeText(code).then(() => {
+    btn.textContent = '✓ Copied!';
+    setTimeout(() => { btn.textContent = 'Copy Join Code'; }, 2000);
+  });
+}
+
+function onSettingsJoinCode() {
+  const code     = document.getElementById('set-join-code').value.trim();
+  const resultEl = document.getElementById('join-code-decode-result');
+  if (!code) { resultEl.innerHTML = ''; return; }
+  const decoded = decodeJoinCode(code);
+  if (decoded) {
+    document.getElementById('set-sheet-url').value    = decoded.sheetsId;
+    document.getElementById('set-client-id').value    = decoded.clientId;
+    document.getElementById('set-client-secret').value = decoded.clientSecret;
+    // Show credential fields so the user can see what will be saved
+    document.getElementById('cred-section').style.display   = 'block';
+    document.getElementById('cred-saved-row').style.display = 'none';
+    resultEl.innerHTML = '<div class="status-pill ok">✓ Join code recognised — review credentials below and click Save Settings</div>';
+  } else {
+    resultEl.innerHTML = '<div class="status-pill warn">Invalid join code</div>';
+  }
+}
+
+function showCredFields() {
+  document.getElementById('cred-saved-row').style.display = 'none';
+  document.getElementById('cred-section').style.display   = 'block';
+}
+
 document.getElementById('btn-save-settings').addEventListener('click', async () => {
   const btn      = document.getElementById('btn-save-settings');
   const resultEl = document.getElementById('settings-result');
@@ -475,15 +536,22 @@ document.getElementById('btn-save-settings').addEventListener('click', async () 
 
   try {
     const body = {};
-    const devName    = document.getElementById('set-device-name').value.trim();
-    const sheetUrl   = document.getElementById('set-sheet-url').value.trim();
-    const clientId   = document.getElementById('set-client-id').value.trim();
-    const clientSec  = document.getElementById('set-client-secret').value.trim();
+    const devName   = document.getElementById('set-device-name').value.trim();
+    const sheetUrl  = document.getElementById('set-sheet-url').value.trim();
+    const clientId  = document.getElementById('set-client-id').value.trim();
+    const clientSec = document.getElementById('set-client-secret').value.trim();
+    const joinCode  = document.getElementById('set-join-code').value.trim();
 
-    if (devName)   body.deviceName         = devName;
-    if (sheetUrl)  body.sheetsId           = sheetUrl;
-    if (clientId)  body.googleClientId     = clientId;
-    if (clientSec) body.googleClientSecret = clientSec;
+    // Join code takes priority — decode credentials + sheet ID from it
+    const joinDecoded = joinCode ? decodeJoinCode(joinCode) : null;
+
+    if (devName)                   body.deviceName         = devName;
+    if (joinDecoded?.sheetsId)     body.sheetsId           = joinDecoded.sheetsId;
+    else if (sheetUrl)             body.sheetsId           = sheetUrl;
+    if (joinDecoded?.clientId)     body.googleClientId     = joinDecoded.clientId;
+    else if (clientId)             body.googleClientId     = clientId;
+    if (joinDecoded?.clientSecret) body.googleClientSecret = joinDecoded.clientSecret;
+    else if (clientSec)            body.googleClientSecret = clientSec;
 
     const res = await fetch('/api/settings/save', {
       method:  'POST',

@@ -240,7 +240,14 @@
       <div class="settings-divider">Google Sheets <span class="badge-opt">OPTIONAL</span></div>
 
       <div class="field">
-        <label>Sheet URL or ID</label>
+        <label>Join code <span style="font-weight:400; text-transform:none; letter-spacing:0; color:var(--muted)">— paste to auto-configure everything</span></label>
+        <input id="set-join-code" type="text" placeholder="aib_..." autocomplete="off" oninput="onSettingsJoinCode()">
+        <div class="hint">Got a join code from a pool organiser? Paste it here — Sheet ID and credentials are set automatically.</div>
+      </div>
+      <div id="join-code-decode-result" style="margin-top:-.5rem; margin-bottom:.85rem"></div>
+
+      <div class="field">
+        <label>Sheet URL or ID <span style="font-weight:400; text-transform:none; letter-spacing:0; color:var(--muted)">— or enter manually</span></label>
         <input id="set-sheet-url" type="text" placeholder="https://docs.google.com/spreadsheets/d/…">
         <div class="hint">Benchmark results will be pushed here for cross-device comparison.</div>
       </div>
@@ -249,32 +256,41 @@
 
       <div id="oauth-status-strip"></div>
 
-      <details class="settings-instructions">
-        <summary>How to get credentials</summary>
-        <div class="instr-body">
-          <ol>
-            <li>Go to <strong>console.cloud.google.com</strong></li>
-            <li>Create or select a project</li>
-            <li>Enable the <strong>Google Sheets API</strong></li>
-            <li>Go to <strong>APIs &amp; Services → Credentials</strong></li>
-            <li>Click <strong>Create Credentials → OAuth client ID → Desktop app</strong></li>
-            <li>Copy the Client ID and Client Secret into the fields below</li>
-          </ol>
-        </div>
-      </details>
-
-      <div class="field">
-        <label>Client ID</label>
-        <input id="set-client-id" type="text" autocomplete="off">
+      <!-- Shown when credentials are already saved; hidden otherwise -->
+      <div id="cred-saved-row" style="display:none; margin-bottom:.85rem">
+        <button class="btn-ghost" style="font-size:.8rem; padding:.3rem .9rem" onclick="showCredFields()">Change credentials ▾</button>
       </div>
-      <div class="field">
-        <label>Client Secret</label>
-        <input id="set-client-secret" type="password" autocomplete="off">
+
+      <!-- Shown when credentials are not saved yet, or after "Change credentials" -->
+      <div id="cred-section">
+        <details class="settings-instructions">
+          <summary>How to get credentials</summary>
+          <div class="instr-body">
+            <ol>
+              <li>Go to <strong>console.cloud.google.com</strong></li>
+              <li>Create or select a project</li>
+              <li>Enable the <strong>Google Sheets API</strong></li>
+              <li>Go to <strong>APIs &amp; Services → Credentials</strong></li>
+              <li>Click <strong>Create Credentials → OAuth client ID → Desktop app</strong></li>
+              <li>Copy the Client ID and Client Secret into the fields below</li>
+            </ol>
+          </div>
+        </details>
+
+        <div class="field">
+          <label>Client ID</label>
+          <input id="set-client-id" type="text" autocomplete="off">
+        </div>
+        <div class="field">
+          <label>Client Secret</label>
+          <input id="set-client-secret" type="password" autocomplete="off">
+        </div>
       </div>
 
       <div class="settings-actions">
         <button id="btn-save-settings" class="btn-accent">Save Settings</button>
         <button id="btn-authorize" class="btn-ghost" disabled>Authorize Google Sheets</button>
+        <button id="btn-copy-join-code" class="btn-ghost" style="display:none" onclick="copyJoinCode()">Copy Join Code</button>
       </div>
 
       <div id="settings-result" style="margin-top:.85rem"></div>

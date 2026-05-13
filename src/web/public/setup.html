@@ -136,6 +136,27 @@
     a { color: var(--accent); text-decoration: none; }
     a:hover { text-decoration: underline; }
 
+    /* ── Pool choice cards ── */
+    .pool-options { display: flex; gap: .75rem; margin-bottom: 1.25rem; }
+    .pool-opt {
+      flex: 1; background: var(--bg); border: 2px solid var(--border);
+      border-radius: 10px; padding: .85rem .75rem; cursor: pointer;
+      transition: all .15s;
+    }
+    .pool-opt:hover  { border-color: var(--muted); }
+    .pool-opt.active { border-color: var(--accent); background: rgba(99,102,241,.08); }
+    .pool-opt .name  { font-weight: 600; font-size: .9rem; margin-bottom: .3rem; }
+    .pool-opt .hint  { font-size: .75rem; color: var(--muted); line-height: 1.4; }
+
+    /* ── Copy button (summary) ── */
+    .copy-btn {
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--muted); padding: 2px 8px; border-radius: 6px;
+      font-size: .75rem; font-weight: 400; cursor: pointer; margin-left: .4rem;
+      vertical-align: middle;
+    }
+    .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+
     /* ── Summary (done panel) ── */
     .summary-item {
       display: flex; align-items: center; gap: .75rem;
@@ -269,66 +290,108 @@
     <span class="optional-badge">Optional</span>
     <div class="panel-icon">📋</div>
     <h1>Share Results</h1>
-    <p>AI Bench can sync your benchmark results to a shared Google Sheet, so you can compare your hardware against other machines on a leaderboard.</p>
-    <p>This step requires a one-time Google Cloud credential setup. <strong>It is completely optional</strong> — all results are saved locally regardless.</p>
+    <p>Sync your benchmark results to a shared Google Sheet leaderboard. All results are saved locally regardless — this step is completely optional.</p>
 
-    <div class="btn-row" style="margin-top:1rem; margin-bottom: 1.5rem">
+    <div class="btn-row" style="margin-top:.75rem; margin-bottom:1.25rem">
       <button class="btn-primary btn-full" onclick="goTo(5)" style="flex:1">Skip for now →</button>
     </div>
 
-    <button class="btn-secondary" style="width:100%" onclick="toggleSheetsSetup()">Set up Google Sheets instead ▾</button>
+    <p style="font-size:.875rem; color:var(--muted); margin-bottom:.75rem">Or choose how you'd like to connect:</p>
 
-    <div id="sheets-setup" class="setup-steps">
-      <p style="margin: 1rem 0 .5rem; font-size:.875rem;">Follow these 5 steps to get your credentials:</p>
+    <div class="pool-options">
+      <div class="pool-opt" id="pool-opt-join" onclick="selectPoolMode('join')">
+        <div class="name">🔗 Join a Pool</div>
+        <div class="hint">Someone shared a sheet URL with you — add your results to their leaderboard.</div>
+      </div>
+      <div class="pool-opt" id="pool-opt-create" onclick="selectPoolMode('create')">
+        <div class="name">✨ Create a Pool</div>
+        <div class="hint">Set up your own leaderboard sheet that others can join.</div>
+      </div>
+    </div>
 
-      <div class="setup-step">
-        <div class="step-num">1</div>
-        <div class="content">
-          <div class="title">Open Google Cloud Console</div>
-          <p><a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com ↗</a> — sign in with any Google account.</p>
-        </div>
-      </div>
-      <div class="setup-step">
-        <div class="step-num">2</div>
-        <div class="content">
-          <div class="title">Create or select a project</div>
-          <p>Click the project dropdown at the top → "New Project". Name it anything (e.g. "ai-bench").</p>
-        </div>
-      </div>
-      <div class="setup-step">
-        <div class="step-num">3</div>
-        <div class="content">
-          <div class="title">Enable the Google Sheets API</div>
-          <p>Go to <strong>APIs &amp; Services → Library</strong> → search "Google Sheets API" → Enable.</p>
-        </div>
-      </div>
-      <div class="setup-step">
-        <div class="step-num">4</div>
-        <div class="content">
-          <div class="title">Create OAuth credentials</div>
-          <p>Go to <strong>APIs &amp; Services → Credentials → Create Credentials → OAuth client ID</strong>. Set Application type to <strong>"Desktop app"</strong>. Click Create.</p>
-        </div>
-      </div>
-      <div class="setup-step">
-        <div class="step-num">5</div>
-        <div class="content">
-          <div class="title">Paste your credentials below</div>
-          <p>Copy the Client ID and Client Secret from the dialog that appears.</p>
-        </div>
+    <!-- ── Join existing pool ── -->
+    <div id="sheets-join-section" style="display:none">
+      <p style="font-size:.875rem; color:var(--muted); margin-bottom:.85rem">Paste the join code from the pool organizer — it sets up everything automatically.</p>
+
+      <label for="inp-join-code">Join code</label>
+      <input id="inp-join-code" type="text" placeholder="aib_..." oninput="onJoinCodeInput()">
+
+      <div class="status-row warn">
+        ⚠️ Make sure the pool organizer has shared the sheet with your Google account.
       </div>
 
-      <div style="margin-top:1.25rem">
-        <label for="inp-client-id">Client ID</label>
-        <input id="inp-client-id" type="text" placeholder="123456789012-abc...apps.googleusercontent.com">
-        <label for="inp-client-secret">Client Secret</label>
-        <input id="inp-client-secret" type="password" placeholder="GOCSPX-...">
-      </div>
+      <div id="join-code-status" class="status-row hidden" style="margin-top:.75rem"></div>
 
-      <div id="sheets-status" class="status-row hidden"></div>
-
-      <div class="btn-row">
-        <button class="btn-primary" onclick="saveSheets()">Save &amp; Continue →</button>
+      <div class="btn-row" style="margin-top:1rem">
+        <button id="btn-join-save" class="btn-primary" onclick="saveJoin()" disabled>Connect &amp; Continue →</button>
         <button class="btn-skip" onclick="goTo(5)">Skip for now</button>
+      </div>
+    </div>
+
+    <!-- ── Create new pool ── -->
+    <div id="sheets-create-section" style="display:none">
+      <button class="btn-secondary" style="width:100%" onclick="toggleCreateCreds()">Set up Google credentials ▾</button>
+      <div id="create-creds" class="setup-steps">
+        <p style="margin: 1rem 0 .5rem; font-size:.875rem;">Follow these 6 steps to get your sheet and credentials:</p>
+
+        <div class="setup-step">
+          <div class="step-num">1</div>
+          <div class="content">
+            <div class="title">Open Google Cloud Console</div>
+            <p><a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com ↗</a> — sign in with any Google account.</p>
+          </div>
+        </div>
+        <div class="setup-step">
+          <div class="step-num">2</div>
+          <div class="content">
+            <div class="title">Create or select a project</div>
+            <p>Click the project dropdown → "New Project". Name it anything (e.g. "ai-bench").</p>
+          </div>
+        </div>
+        <div class="setup-step">
+          <div class="step-num">3</div>
+          <div class="content">
+            <div class="title">Enable the Google Sheets API</div>
+            <p>Go to <strong>APIs &amp; Services → Library</strong> → search "Google Sheets API" → Enable.</p>
+          </div>
+        </div>
+        <div class="setup-step">
+          <div class="step-num">4</div>
+          <div class="content">
+            <div class="title">Create OAuth credentials</div>
+            <p>Go to <strong>APIs &amp; Services → Credentials → Create Credentials → OAuth client ID</strong>. Set Application type to <strong>"Desktop app"</strong>. Click Create.</p>
+          </div>
+        </div>
+        <div class="setup-step">
+          <div class="step-num">5</div>
+          <div class="content">
+            <div class="title">Paste your credentials below</div>
+            <p>Copy the Client ID and Client Secret from the dialog that appears.</p>
+          </div>
+        </div>
+        <div class="setup-step">
+          <div class="step-num">6</div>
+          <div class="content">
+            <div class="title">Create a Google Sheet for your pool</div>
+            <p>Go to <a href="https://sheets.new" target="_blank">sheets.new ↗</a> to create a blank sheet. Copy the URL from your browser and paste it below — share this URL with anyone who wants to join your pool.</p>
+          </div>
+        </div>
+
+        <div style="margin-top:1.25rem">
+          <label for="inp-create-client-id">Client ID</label>
+          <input id="inp-create-client-id" type="text" placeholder="123456789012-abc...apps.googleusercontent.com">
+          <label for="inp-create-client-secret">Client Secret</label>
+          <input id="inp-create-client-secret" type="password" placeholder="GOCSPX-...">
+          <label for="inp-create-sheet-url">Your pool sheet URL</label>
+          <input id="inp-create-sheet-url" type="text" placeholder="https://docs.google.com/spreadsheets/d/...">
+        </div>
+
+        <div id="create-sheets-status" class="status-row hidden"></div>
+
+        <div class="btn-row">
+          <button class="btn-primary" onclick="saveCreatePool()">Save &amp; Continue →</button>
+          <button class="btn-skip" onclick="goTo(5)">Skip for now</button>
+        </div>
       </div>
     </div>
 
@@ -358,8 +421,10 @@ let state = {
   model:           null,
   providerSkipped: false,
   sheetsSetup:     false,
+  poolMode:        null,  // 'join' | 'create'
+  sheetsUrl:       '',    // full sheet URL saved during setup
   clientId:        '',
-  clientSecret:    '',
+  clientSecret:    '',    // kept in memory only for join-code generation
   hostname:        '',
 };
 
@@ -532,40 +597,107 @@ async function saveProvider() {
 }
 
 // ── Panel 4: Google Sheets ────────────────────────────────────────────────────
-function toggleSheetsSetup() {
-  const el  = document.getElementById('sheets-setup');
-  const btn = document.querySelector('#panel-4 .btn-secondary[onclick="toggleSheetsSetup()"]');
-  const visible = el.classList.toggle('visible');
-  btn.textContent = visible ? 'Hide instructions ▴' : 'Set up Google Sheets instead ▾';
+function encodeJoinCode(clientId, clientSecret, sheetsUrl) {
+  const m = sheetsUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  const sheetsId = m ? m[1] : sheetsUrl;
+  return 'aib_' + btoa(JSON.stringify({ c: clientId, s: clientSecret, d: sheetsId }));
 }
 
-function setSheetsStatus(type, msg) {
-  const el = document.getElementById('sheets-status');
-  el.className = 'status-row ' + type;
-  el.textContent = msg;
-}
-
-async function saveSheets() {
-  const clientId     = document.getElementById('inp-client-id').value.trim();
-  const clientSecret = document.getElementById('inp-client-secret').value.trim();
-
-  if (!clientId || !clientSecret) {
-    setSheetsStatus('fail', 'Please enter both Client ID and Client Secret.');
-    return;
+function decodeJoinCode(code) {
+  try {
+    const raw = code.trim().startsWith('aib_') ? code.trim().slice(4) : code.trim();
+    const { c, s, d } = JSON.parse(atob(raw));
+    if (!c || !d) return null;
+    return { clientId: c, clientSecret: s || '', sheetsId: d };
+  } catch {
+    return null;
   }
+}
 
-  setSheetsStatus('info', 'Saving credentials…');
+function selectPoolMode(mode) {
+  state.poolMode = mode;
+  document.querySelectorAll('.pool-opt').forEach(o => o.classList.remove('active'));
+  document.getElementById('pool-opt-' + mode).classList.add('active');
+  document.getElementById('sheets-join-section').style.display   = mode === 'join'   ? 'block' : 'none';
+  document.getElementById('sheets-create-section').style.display = mode === 'create' ? 'block' : 'none';
+}
+
+function toggleCreateCreds() {
+  const el  = document.getElementById('create-creds');
+  const btn = document.querySelector('#sheets-create-section > .btn-secondary');
+  const visible = el.classList.toggle('visible');
+  btn.textContent = visible ? 'Hide instructions ▴' : 'Set up Google credentials ▾';
+}
+
+function onJoinCodeInput() {
+  const code     = document.getElementById('inp-join-code').value.trim();
+  const statusEl = document.getElementById('join-code-status');
+  const btn      = document.getElementById('btn-join-save');
+  if (!code) { statusEl.className = 'status-row hidden'; btn.disabled = true; return; }
+  const decoded = decodeJoinCode(code);
+  if (decoded) {
+    statusEl.className   = 'status-row ok';
+    statusEl.textContent = '✓ Join code recognised — click Connect to continue';
+    btn.disabled = false;
+  } else {
+    statusEl.className   = 'status-row fail';
+    statusEl.textContent = '✗ Invalid join code — check with the pool organiser';
+    btn.disabled = true;
+  }
+}
+
+async function saveJoin() {
+  const code     = document.getElementById('inp-join-code').value.trim();
+  const decoded  = decodeJoinCode(code);
+  const statusEl = document.getElementById('join-code-status');
+  const setStatus = (type, msg) => { statusEl.className = 'status-row ' + type; statusEl.textContent = msg; };
+
+  if (!decoded) { setStatus('fail', '✗ Invalid join code'); return; }
+  setStatus('info', 'Saving…');
   try {
     await fetch('/api/setup/save', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ googleClientId: clientId, googleClientSecret: clientSecret }),
+      body: JSON.stringify({ googleClientId: decoded.clientId, googleClientSecret: decoded.clientSecret, sheetsId: decoded.sheetsId }),
     });
-    state.sheetsSetup = true;
-    state.clientId    = clientId;
-    setSheetsStatus('ok', '✓ Saved. First benchmark will open Google authorization in your browser.');
+    state.sheetsSetup  = true;
+    state.poolMode     = 'join';
+    state.sheetsUrl    = `https://docs.google.com/spreadsheets/d/${decoded.sheetsId}`;
+    state.clientId     = decoded.clientId;
+    state.clientSecret = decoded.clientSecret;
+    setStatus('ok', '✓ Saved. First benchmark will open Google authorisation in your browser.');
     setTimeout(() => goTo(5), 1200);
   } catch (err) {
-    setSheetsStatus('fail', 'Failed to save: ' + err.message);
+    setStatus('fail', 'Failed to save: ' + err.message);
+  }
+}
+
+async function saveCreatePool() {
+  const clientId     = document.getElementById('inp-create-client-id').value.trim();
+  const clientSecret = document.getElementById('inp-create-client-secret').value.trim();
+  const sheetUrl     = document.getElementById('inp-create-sheet-url').value.trim();
+  const statusEl     = document.getElementById('create-sheets-status');
+  const setStatus = (type, msg) => { statusEl.className = 'status-row ' + type; statusEl.textContent = msg; };
+
+  if (!clientId || !clientSecret) { setStatus('fail', 'Please enter both Client ID and Client Secret.'); return; }
+  if (!sheetUrl) { setStatus('fail', 'Please enter your pool sheet URL.'); return; }
+  const m = sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if (!m) { setStatus('fail', 'Invalid Google Sheets URL — paste the full URL from your browser.'); return; }
+
+  setStatus('info', 'Saving…');
+  try {
+    await fetch('/api/setup/save', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ googleClientId: clientId, googleClientSecret: clientSecret, sheetsId: m[1] }),
+    });
+    state.sheetsSetup  = true;
+    state.poolMode     = 'create';
+    state.sheetsUrl    = sheetUrl;
+    state.clientId     = clientId;
+    state.clientSecret = clientSecret;
+    setStatus('ok', '✓ Saved. First benchmark will open Google authorisation in your browser.');
+    setTimeout(() => goTo(5), 1200);
+  } catch (err) {
+    setStatus('fail', 'Failed to save: ' + err.message);
   }
 }
 
@@ -591,10 +723,13 @@ function renderSummary() {
       icon: '📋',
       label: 'Google Sheets',
       val: state.sheetsSetup
-        ? 'Configured — will sync on next benchmark'
+        ? (state.poolMode === 'join' ? 'Joined a pool — will sync on next benchmark' : 'Created a pool — will sync on next benchmark')
         : 'Not set up',
       ok: state.sheetsSetup,
       note: state.sheetsSetup ? '' : 'Add later: ai-bench config',
+      sheetsUrl: (state.sheetsSetup && state.poolMode === 'create') ? state.sheetsUrl : null,
+      joinCode:  (state.sheetsSetup && state.poolMode === 'create' && state.clientId)
+                   ? encodeJoinCode(state.clientId, state.clientSecret, state.sheetsUrl) : null,
     },
   ];
 
@@ -604,10 +739,19 @@ function renderSummary() {
       <div>
         <div class="sub">${item.label}</div>
         <div class="val">${item.val}</div>
+        ${item.sheetsUrl ? `<div class="sub" style="margin-top:.35rem; font-size:.75rem; word-break:break-all">${item.sheetsUrl}<button class="copy-btn" data-url="${item.sheetsUrl}" onclick="copyPoolUrl(this)">Copy URL</button></div>` : ''}
+        ${item.joinCode ? `<div class="sub" style="margin-top:.35rem; font-size:.75rem">Share this with people joining your pool: <button class="copy-btn" data-url="${item.joinCode}" onclick="copyPoolUrl(this)">Copy Join Code</button></div>` : ''}
         ${item.note ? `<div class="sub" style="margin-top:.15rem">${item.note}</div>` : ''}
       </div>
     </div>
   `).join('');
+}
+
+function copyPoolUrl(btn) {
+  navigator.clipboard.writeText(btn.dataset.url).then(() => {
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 2000);
+  });
 }
 
 async function finish() {

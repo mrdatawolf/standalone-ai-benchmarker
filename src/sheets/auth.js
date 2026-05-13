@@ -64,7 +64,10 @@ export async function getAuthClient() {
 async function _authorizeNew(oauth2) {
   const authUrl = oauth2.generateAuthUrl({ access_type: 'offline', scope: SCOPES, prompt: 'consent' });
 
+  const clientId = new URL(authUrl).searchParams.get('client_id');
   console.log('\nOpening Google authorization in your browser...');
+  console.log('  Client ID in use:', clientId);
+  console.log('  Redirect URI:    ', REDIRECT);
   console.log('If the browser does not open, visit:\n' + authUrl + '\n');
 
   const code = await _captureCode(authUrl);

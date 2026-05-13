@@ -1,7 +1,3 @@
 {
-  "pkg": {
-    "assets": [
-      "dist/public/**/*"
-    ]
-  }
+  "pkg": {}
 }

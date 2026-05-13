@@ -1,5 +1,8 @@
 import { build } from 'esbuild';
-import { cpSync, rmSync, mkdirSync, existsSync } from 'node:fs';
+import { readFile, rmSync, mkdirSync, existsSync } from 'node:fs';
+import { promisify } from 'node:util';
+
+const readFileAsync = promisify(readFile);
 
 // Clean dist
 if (existsSync('dist')) rmSync('dist', { recursive: true, force: true });
@@ -23,6 +26,23 @@ const nodeSqlitePlugin = {
   },
 };
 
+// Inline all files from src/web/public directly into bundle.cjs as string/base64
+// constants. This avoids storing them as separate pkg VFS asset entries, whose
+// binary reads fail on some Windows machines (AV scanning corrupts offsets).
+const inlinePublicPlugin = {
+  name: 'inline-public',
+  setup(b) {
+    b.onLoad({ filter: /[/\\]public[/\\][^/\\]+\.(html|js|css)$/ }, async ({ path }) => {
+      const text = await readFileAsync(path, 'utf8');
+      return { contents: `export default ${JSON.stringify(text)}`, loader: 'js' };
+    });
+    b.onLoad({ filter: /[/\\]public[/\\][^/\\]+\.(png|ico|gif|svg|woff2?)$/ }, async ({ path }) => {
+      const buf = await readFileAsync(path);
+      return { contents: `export default "${buf.toString('base64')}"`, loader: 'js' };
+    });
+  },
+};
+
 console.log('Bundling with esbuild...');
 await build({
   entryPoints: ['src/cli.js'],
@@ -31,7 +51,7 @@ await build({
   target:      'node22',
   format:      'cjs',
   outfile:     'dist/bundle.cjs',
-  plugins:     [nodeSqlitePlugin],
+  plugins:     [nodeSqlitePlugin, inlinePublicPlugin],
   // Polyfill import.meta.url for CJS output so __dirname resolves correctly
   banner: {
     js: `const __importMetaUrl = require('url').pathToFileURL(__filename).href;`,
@@ -40,8 +60,5 @@ await build({
     'import.meta.url': '__importMetaUrl',
   },
 });
-
-console.log('Copying static web files...');
-cpSync('src/web/public', 'dist/public', { recursive: true });
 
 console.log('Done → dist/bundle.cjs');
