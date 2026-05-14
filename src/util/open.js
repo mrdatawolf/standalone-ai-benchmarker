@@ -3,7 +3,8 @@ import { spawn } from 'node:child_process';
 export function openUrl(url) {
   try {
     if (process.platform === 'win32') {
-      spawn('cmd', ['/c', 'start', '', url], { detached: true, stdio: 'ignore' });
+      // rundll32 opens URLs via the Windows shell API without cmd.exe metacharacter issues
+      spawn('rundll32.exe', ['url.dll,FileProtocolHandler', url], { detached: true, stdio: 'ignore' });
     } else if (process.platform === 'darwin') {
       spawn('open', [url], { detached: true, stdio: 'ignore' });
     } else {

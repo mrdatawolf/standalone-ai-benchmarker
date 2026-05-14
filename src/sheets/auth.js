@@ -62,9 +62,20 @@ export async function getAuthClient() {
 }
 
 async function _authorizeNew(oauth2) {
-  const authUrl = oauth2.generateAuthUrl({ access_type: 'offline', scope: SCOPES, prompt: 'consent' });
+  const uc = getUserConfig();
+  const clientId = (process.env.GOOGLE_CLIENT_ID?.trim() || uc.googleClientId?.trim());
 
-  const clientId = new URL(authUrl).searchParams.get('client_id');
+  // Build the auth URL manually — generateAuthUrl produces a URL whose & separators
+  // get interpreted as shell command separators by cmd.exe on Windows, dropping params.
+  const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({
+    response_type: 'code',
+    client_id:     clientId,
+    redirect_uri:  REDIRECT,
+    scope:         SCOPES.join(' '),
+    access_type:   'offline',
+    prompt:        'consent',
+  }).toString();
+
   console.log('\nOpening Google authorization in your browser...');
   console.log('  Client ID in use:', clientId);
   console.log('  Redirect URI:    ', REDIRECT);
